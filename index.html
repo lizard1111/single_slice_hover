@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Brain Viewer</title>
+    <style>
+        body, html {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: black;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        object {
+            display: block;
+            max-width: 80%;  /* control SVG size, can be changed */
+        }
+        #textArea {
+            color: white;
+            min-height: 120px; /* Set minimum height to avoid jumping */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            margin-top: 20px; /* Add some space between the SVG and the text */
+        }
+        p {
+            margin: 0;
+            text-align: center; /* center the text itself */
+        }
+        #colorDisplay {
+            font-size: 24px;
+        }
+        #acronymDisplay {
+            font-size: 36px;
+            margin-top: 10px;
+        }
+        #nameDisplay {
+            font-size: 18px;
+            margin-top: 10px;
+        }  
+
+    </style>
+</head>
+<body>
+    <object id="brainSvg" type="image/svg+xml" data="P56_Annotation_0088.svg">Your browser does not support SVGs</object>
+    <div id="textArea">
+        <p id="colorDisplay">Hover over a region to see its color, acronym, and name.</p>
+        <p id="acronymDisplay"></p>
+        <p id="nameDisplay"></p>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const svgObject = document.getElementById('brainSvg');
+        const colorDisplay = document.getElementById('colorDisplay');
+        const acronymDisplay = document.getElementById('acronymDisplay');
+        const nameDisplay = document.getElementById('nameDisplay');
+        let paths = [];
+
+        svgObject.addEventListener('load', function() {
+            const svgDoc = svgObject.contentDocument;
+            const svgRoot = svgDoc.documentElement;
+            paths = svgRoot.querySelectorAll('path');
+
+            paths.forEach(path => {
+                const originalStrokeWidth = path.style.strokeWidth || '0.25'; // Remember the original stroke width
+
+                path.addEventListener('mouseover', function() {
+                    if (path.style.fill !== 'none') {
+                        const computedStyle = getComputedStyle(path);
+                        const colorRGB = computedStyle.fill;
+                        const colorHex = rgbToHex(colorRGB);
+                        getData(colorHex).then(data => {
+                            const [id, hex, acronym, name] = data;
+                            colorDisplay.textContent = `RGB: ${colorRGB}, Hex: ${colorHex}`;
+                            acronymDisplay.textContent = `Acronym: ${acronym}`;
+                            nameDisplay.textContent = `Name: ${name}`;
+                        });
+
+                        path.style.strokeWidth = '0.50'; // Increase the stroke width
+                        path.style.stroke = '#000'; // Change the stroke color if you want to
+                    }
+                });
+
+                path.addEventListener('mouseout', function() {
+                    if (path.style.fill !== 'none') {
+                        colorDisplay.textContent = 'Hover over a region to see its color, acronym, and name.';
+                        acronymDisplay.textContent = '';
+                        nameDisplay.textContent = '';
+                        path.style.strokeWidth = originalStrokeWidth; // Reset the stroke width to its original value
+                        path.style.stroke = 'none'; // Reset the stroke color if you changed it
+                    }
+                });
+            });
+        });
+    });
+
+    // Helper function to convert RGB color to hex color
+    function rgbToHex(rgb) {
+        const values = rgb.match(/\d+/g);
+        const hexValues = values.map(value => {
+            const hex = parseInt(value).toString(16);
+            return hex.length === 1 ? "0" + hex : hex;
+        });
+        const hexWithoutHash = hexValues.join("").toUpperCase(); // Convert to uppercase without the '#'
+        return hexWithoutHash;
+    }
+
+    // Helper function to get the data from the JSON array
+    async function getData(hex) {
+        const response = await fetch('color_acronym_name_mapping.json');
+        const jsonData = await response.json();
+        const data = jsonData.find(item => item[1].toLowerCase() === hex.toLowerCase()) || [];
+        return data;
+    }
+    </script>
+</body>
+</html>
